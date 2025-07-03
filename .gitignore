@@ -1,7 +1,62 @@
-﻿# keep big data out of git
-*.parquet
-orekit-data/**
+﻿########################
+#  Python / Conda
+########################
 __pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.egg-info/
+*.egg
+*.whl
+.Python
+env/
+.venv/
+.conda/
+*.conda
+*.ipynb_checkpoints/
+
+########################
+#  Jupyter & VS Code
+########################
 .ipynb_checkpoints/
-# keep raw >200 MB out, but track the tiny cleaned file
+.vscode/
+*.~ipynb
+# JupyterLab workdir state
+.lab/
+.jupyter/
+
+########################
+#  OS / Editor cruft
+########################
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*.bak
+
+########################
+#  Logs / reports
+########################
+*.log
+*.out
+*.tmp
+*.coverage
+htmlcov/
+coverage.xml
+
+########################
+#  Large raw data
+########################
+*.parquet          # Ignore ALL parquet by default
+orekit-data/**     # 80 MB ephemeris, gravity, etc.
+
+# BUT: keep the cleaned subset
 !GPS_clean.parquet
+
+########################
+#  Build / dist artefacts
+########################
+build/
+dist/
+*.patch
