@@ -3,3 +3,5 @@
 orekit-data/**
 __pycache__/
 .ipynb_checkpoints/
+# keep raw >200 MB out, but track the tiny cleaned file
+!GPS_clean.parquet
