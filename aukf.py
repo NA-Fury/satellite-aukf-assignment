@@ -15,6 +15,9 @@ UKF.history      # list of (t, state_vector, cov) tuples
 """
 from __future__ import annotations
 import numpy as np
+from org.orekit.utils import PVCoordinates, Vector3D, Constants
+from org.orekit.orbits import CartesianOrbit
+from org.orekit.frames import FramesFactory
 
 # --------------------------------------------------------------------------
 # 1.  Σ-point generator  (private helper)
@@ -75,71 +78,149 @@ class UnscentedKalman:
     # ------------------------------------------------------------------
     # 2.1  initialise from first GNSS epoch
     # ------------------------------------------------------------------
-    def init_from_measurement(self, t0, Z0):
-        self.x = Z0.copy()                    # naïve state = measurement
-        self.P = np.eye(self.n) * 1e2         # 100 m² position, (1 m/s)² vel
-        self.history.append((t0, self.x.copy(), self.P.copy()))
+    
+    # keep track of the current absolute date
+    def init_from_measurement(self, t0_sec: float, z0: np.ndarray):
+        self.x = z0.copy()
+        self.P = np.eye(self.dim_x) * 1e4
+        self._current_date = FramesFactory.getEME2000()\
+                            .getEpoch()\
+                            .shiftedBy(float(t0_sec))
+        self.history = [(self._current_date, self.x.copy())]
 
     # ------------------------------------------------------------------
     # 2.2  Predict-then-update for one epoch
     # ------------------------------------------------------------------
     def step(self, dt: float, Z: np.ndarray):
+        """
+        UKF predict-update for a single epoch.
+        """
+        # ----- SIGMA-POINTS --------------------------------------------------
         χ, Wm, Wc = _sigma_points(self.x, self.P,
                                   self.alpha, self.beta, self.kappa)
 
-        # ---- PREDICT: propagate each σ-point with Orekit --------------
+        # ----- PREDICT ------------------------------------------------------
         χ_pred = np.vstack([self._propagate_sigma(sig, dt) for sig in χ])
         x_pred = χ_pred.T @ Wm
         P_pred = (χ_pred - x_pred).T @ np.diag(Wc) @ (χ_pred - x_pred) + self.Q
 
-        # ---- UPDATE: transform to measurement space (identity here) ---
-        Z_pred = χ_pred                  # same coords
-        z_pred = Z_pred.T @ Wm
-        S      = (Z_pred - z_pred).T @ np.diag(Wc) @ (Z_pred - z_pred) + self.R
-        Cxz    = (χ_pred - x_pred).T  @ np.diag(Wc) @ (Z_pred - z_pred)
-        K      = Cxz @ np.linalg.inv(S)
-
-        y      = Z - z_pred               # innovation
+        # ----- UPDATE -------------------------------------------------------
+        y  = Z - x_pred                 # residual
+        S  = P_pred + self.R
+        K  = P_pred @ np.linalg.inv(S)  # Kalman gain
         self.x = x_pred + K @ y
-        self.P = P_pred - K @ S @ K.T
+        self.P = (np.eye(self.dim_x) - K) @ P_pred
 
-        # ---- optional adaptive Q/R  -----------------------------------
-        if self.adaptive == "sage-husa":
-            self._sage_husa(y, K, S)
-
-        self.history.append((self.history[-1][0] + dt,  # time
-                             self.x.copy(), self.P.copy()))
+        # advance absolute date for next call
+        self._current_date = self._current_date.shiftedBy(float(dt))
+        self.history.append((self._current_date, self.x.copy()))
 
     # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
     def _propagate_sigma(self, sig: np.ndarray, dt: float) -> np.ndarray:
-        """Wrap OrbitPropagator.propagate_from_state for a σ-point."""
-        from org.orekit.orbits import CartesianOrbit
-        from org.orekit.frames import FramesFactory
-        from org.orekit.utils import Constants
-        from org.orekit.time   import AbsoluteDate
-        # build Orekit orbit from sig (EME2000 frame)
+        """
+        Propagate one sigma-point `sig` forward by `dt` [s] using Orekit.
+        Returns the 6-element Cartesian state in EME2000.
+        """
+        # build Orekit PV from the sigma-point
+        pv0 = PVCoordinates(Vector3D(*sig[:3]), Vector3D(*sig[3:]))
+
+        # CartesianOrbit in EME2000
         eme2000 = FramesFactory.getEME2000()
-        pv = self.prop.Vector3D(*sig[:3]), self.prop.Vector3D(*sig[3:])
-        date0 = self.prop.AbsoluteDate(
-                *self.history[-1][:1],  # current AbsoluteDate
-            )
-        orbit = CartesianOrbit(self.prop.PVCoordinates(*pv),
-                               eme2000, date0, Constants.WGS84_EARTH_MU)
-        tspan, states = self.prop.propagate_from_state(orbit, dt, step=dt)
-        final = states[-1].getPVCoordinates()
-        return np.array([
-            final.getPosition().getX(),
-            final.getPosition().getY(),
-            final.getPosition().getZ(),
-            final.getVelocity().getX(),
-            final.getVelocity().getY(),
-            final.getVelocity().getZ(),
-        ], dtype=float)
+        orbit0  = CartesianOrbit(pv0, eme2000,
+                                 self._current_date,
+                                 Constants.WGS84_EARTH_MU)
+
+        # 1-step propagation
+        tspan, states = self.prop.propagate_from_state(orbit0,
+                                                       duration=float(dt),
+                                                       step=float(dt))
+        pv1 = states[-1].getPVCoordinates()
+
+        # return as numpy vector
+        return np.hstack([pv1.getPosition().toArray(),
+                          pv1.getVelocity().toArray()])
 
     def _sage_husa(self, y, K, S):
         """Very light Sage–Husa adaptive noise estimator."""
         gamma = 0.01
         self.Q += gamma * (np.outer(self.x, self.x) - self.Q)
         self.R += gamma * (np.outer(y, y) - S - self.R)
+
+    def propagate_sigma_points(self, chi, dt_sec, propagator):
+        """
+        Propagate every sigma point forward by dt_sec with Orekit.
+    
+        Parameters
+        ----------
+        chi : ndarray shape (2n+1, n)
+            Sigma-point matrix at time k.
+        dt_sec : float
+            Δt to propagate [s].
+        propagator : OrbitPropagator
+            Wrapper you wrote earlier.
+    
+        Returns
+        -------
+        chi_fwd : ndarray shape (2n+1, n)
+            Propagated sigma-points at k+1.
+        """
+        out = np.empty_like(chi)
+        for i, sp in enumerate(chi):
+            # build CartesianOrbit from the 6-element vector
+            pos = Vector3D(sp[0], sp[1], sp[2])
+            vel = Vector3D(sp[3], sp[4], sp[5])
+            pv  = PVCoordinates(pos, vel)
+            orbit = CartesianOrbit(
+                pv,
+                FramesFactory.getEME2000(),
+                propagator.propagator.getInitialState().getDate(),  # epoch of χ
+                Constants.WGS84_EARTH_MU,
+            )
+            tspan, states = propagator.propagate_from_state(orbit, dt_sec, step=dt_sec)
+            pv_new = states[-1].getPVCoordinates()
+            out[i] = np.r_[
+                pv_new.getPosition().toArray(),
+                pv_new.getVelocity().toArray(),
+            ]
+        return out
+
+    def predict(self, dt, propagator):
+        """Unscented transform through the dynamics f(x)."""
+        chi, Wm, Wc = _sigma_points(self.x, self.P, self.alpha, self.kappa, self.beta)
+        chi_fwd      = self.propagate_sigma_points(chi, dt, propagator)
+    
+        # predicted mean
+        self.x = np.sum(Wm[:, None] * chi_fwd, axis=0)
+    
+        # predicted covariance
+        diff   = chi_fwd - self.x
+        self.P = diff.T @ (Wc[:, None] * diff) + self.Q
+
+    def update(self, z):
+        """
+        Standard UKF measurement update with full-state observation.
+    
+        z : array-like shape (6,)
+            GPS position + velocity in metres / m·s⁻¹
+        """
+        chi, Wm, Wc = _sigma_points(self.x, self.P, self.alpha, self.kappa, self.beta)
+        # measurement model is identity ⇒ Z = chi
+        Z_sigma = chi.copy()
+    
+        z_pred = np.sum(Wm[:, None] * Z_sigma, axis=0)
+        diff_z = Z_sigma - z_pred
+        Pzz    = diff_z.T @ (Wc[:, None] * diff_z) + self.R
+        Pxz    = (chi - self.x).T @ (Wc[:, None] * diff_z)
+    
+        K = Pxz @ np.linalg.inv(Pzz)          # Kalman gain
+        self.x += K @ (z - z_pred)
+        self.P -= K @ Pzz @ K.T
+    
+        # (optional) adaptive_covariance update
+        if self.adaptive:
+            self.update_QR(z, z_pred)
+
+
+
