@@ -115,6 +115,7 @@ class UnscentedKalman:
         # --- UPDATE (identity H) ------------------------------------------
         y   = Z - x_pred
         Pzz = P_pred + self.R
+        Pxz = P_pred 
         K   = Pxz @ np.linalg.inv(Pzz)
 
         self.x = x_pred + K @ y
