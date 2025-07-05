@@ -1,0 +1,11 @@
+name: satellite-aukf
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - matplotlib
+  - pip
+  - pip:
+    - pytest
