@@ -1,21 +1,29 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      # install via Conda
-      - uses: conda-incubator/setup-miniconda@v2
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: 3.11
-          environment-file: environment.yml
-          activate-environment: satellite-aukf
-          use-mamba: true
 
-      # run tests
-      - name: Run pytest
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        # add the repo root so `import aukf` works
+        env:
+          PYTHONPATH: .
         run: pytest -q
