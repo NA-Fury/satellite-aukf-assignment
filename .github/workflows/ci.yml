@@ -27,4 +27,3 @@ jobs:
         run: |
           conda activate aukf-env
           pytest -q
-
