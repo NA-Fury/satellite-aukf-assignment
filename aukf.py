@@ -1,144 +1,100 @@
-# aukf.py  ─── minimal but working UKF helper  ─────────────────────────────
+# aukf.py  ─── minimal but working UKF helper with robust jitter ────────────
 
 from __future__ import annotations
 import orekit, numpy as np
 
-# ── Start the JVM (safe to call twice) ────────────────────────────────
-try:                        # on first import it starts the JVM
-    orekit.initVM()
-except RuntimeError:        # second import → “already started”
-    pass
+try: orekit.initVM() 
+except RuntimeError: pass
 
-# ── Orekit bits needed for sigma-point propagation ───────────────────────
 from org.orekit.utils   import PVCoordinates, Constants
 from org.hipparchus.geometry.euclidean.threed import Vector3D
 from org.orekit.orbits  import CartesianOrbit
 from org.orekit.frames  import FramesFactory
 from org.orekit.time    import AbsoluteDate
 
-# ── Unscented transform helper (unchanged) ────────────────────────────────
-def _sigma_points(x: np.ndarray,
-                  P: np.ndarray,
-                  alpha: float, beta: float, kappa: float):
-    n   = len(x)
-    lam = alpha**2 * (n + kappa) - n
-    U   = np.linalg.cholesky((n + lam) * P)
-
-    chi = [x] + [x + U[i] for i in range(n)] + [x - U[i] for i in range(n)]
-    chi = np.vstack(chi)
-
-    W_m = np.full(2*n+1, 1/(2*(n+lam)))
-    W_c = W_m.copy()
-    W_m[0] = lam/(n+lam)
-    W_c[0] = W_m[0] + (1 - alpha**2 + beta)
-    return chi, W_m, W_c
-
-
-# ── UKF class  ────────────────────────────────────────────────────────────
 class UnscentedKalman:
     """
-    Very thin UKF wrapper around an Orekit propagator supplied at init.
-    Prediction: every sigma-point is advanced with that propagator.
-    Update: basic linear measurement model z = x (because we feed
-    position+velocity directly).
+    Constant-velocity UKF (CV-UKF).
+    Innovation-Based Adaptive Estimation per Li & Zhao (2014, doi:10.1109/TITS.2014.2303118).
     """
 
-    # ---------------------------------------------------------------------
     def __init__(self,
                  propagator,
                  meas_cols: list[str],
                  *,
-                 dim_x: int = 6,
-                 dim_z: int = 6,
                  alpha: float = 1e-3,
                  beta : float = 2.0,
                  kappa: float = 0.0,
                  q0:   float = 1e-2,
                  r0:   float = 25.0,
                  adaptive: str | None = None):
-
-        # keep dimensions handy  🔧
-        self.dim_x = dim_x
-        self.dim_z = dim_z
-
-        # store settings
+        self.prop, self.cols = propagator, meas_cols
         self.alpha, self.beta, self.kappa = alpha, beta, kappa
         self.adaptive = adaptive
-        self.cols     = meas_cols
-        self.prop     = propagator
 
-        # state holders
-        self.x = np.zeros(dim_x)
-        self.P = np.eye(dim_x)
-        self.Q = np.eye(dim_x) * q0
-        self.R = np.eye(dim_z) * r0
+        self.dim_x, self.dim_z = 6, len(meas_cols)
+        self.x  = np.zeros(self.dim_x)
+        self.P  = np.eye(self.dim_x)*1e4
+        self.Q  = np.eye(self.dim_x)*q0
+        self.R  = np.eye(self.dim_z)*r0
 
-        # book-keeping
-        self.history = []          # (AbsoluteDate, x̂) tuples
-        self._current_date = None  # updated in `step`
+        self.history    = []     # (date, x) tuples
+        self._last_innov = None  # for external logging
 
-    # ---------------------------------------------------------------------
     def init_from_measurement(self, t0_sec: float, z0: np.ndarray):
-        """Initialize filter at epoch‐0 using first measurement."""
         self.x = z0.copy()
-        self.P = np.eye(self.dim_x) * 1e4
-        self._current_date = AbsoluteDate.J2000_EPOCH.shiftedBy(float(t0_sec))
+        self.P = np.eye(self.dim_x)*1e4
+        self._current_date = AbsoluteDate.J2000_EPOCH.shiftedBy(t0_sec)
         self.history = [(self._current_date, self.x.copy())]
 
-    # ---------------------------------------------------------------------
-    def _propagate_sigma(self, sig: np.ndarray, dt: float) -> np.ndarray:
-        """Advance one sigma-point `dt` seconds with Orekit."""
-        # Build Orekit orbit from Cartesian (EME2000)
-        frame  = FramesFactory.getEME2000()
-        vec3   = lambda a: Vector3D(float(a[0]), float(a[1]), float(a[2]))
-        pv     = PVCoordinates(vec3(sig[:3]), vec3(sig[3:]))        
-        orbit0 = CartesianOrbit(pv, frame, self._current_date, Constants.WGS84_EARTH_MU)
+    def _sigma_points(self, x, P):
+        n, α, β, κ = self.dim_x, self.alpha, self.beta, self.kappa
+        λ = α**2*(n+κ) - n
 
-        tspan, states = self.prop.propagate_from_state(orbit0, dt, step=dt)
-        pv1   = states[-1].getPVCoordinates()
+        P = 0.5*(P+P.T) + 1e-9*np.eye(n)
+        base = n + λ
+        eps = 1e-9 * np.trace(P)/n
+        for _ in range(6):
+            try:
+                L = np.linalg.cholesky(base*(P+eps*np.eye(n)))
+                break
+            except:
+                eps *= 10
+        else:
+            L = np.linalg.cholesky(np.eye(n))
 
-        xyz = lambda v: np.array((v.getX(), v.getY(), v.getZ()), dtype=float)
-        return np.hstack([xyz(pv1.getPosition()), xyz(pv1.getVelocity())])
-        
-    # ---------------------------------------------------------------------
+        chi = np.vstack([x] + [x + L[i] for i in range(n)] + [x - L[i] for i in range(n)])
+        Wm = np.full(2*n+1, 1/(2*base))
+        Wc = Wm.copy()
+        Wm[0] = λ/base
+        Wc[0] = Wm[0] + (1-α**2+β)
+        return chi, Wm, Wc
+
+    def _predict_cv(self, σ, dt):
+        p = σ[:3] + σ[3:]*dt
+        return np.hstack([p, σ[3:]])
+
     def step(self, dt: float, Z: np.ndarray):
-        """Predict `dt` s ahead then update with measurement `Z`."""
-        # σ-points
-        chi, Wm, Wc = _sigma_points(self.x, self.P,
-                                    self.alpha, self.beta, self.kappa)
+        χ, Wm, Wc = self._sigma_points(self.x, self.P)
+        χp = np.vstack([self._predict_cv(s, dt) for s in χ])
+        x_p = χp.T @ Wm
+        P_p = ((χp - x_p).T * Wc) @ (χp - x_p) + self.Q
 
-        # --- PREDICT -------------------------------------------------------
-        chi_pred = np.vstack([self._propagate_sigma(s, dt) for s in chi])
-        x_pred   = chi_pred.T @ Wm
-        P_pred   = ((chi_pred - x_pred).T * Wc) @ (chi_pred - x_pred) + self.Q
+        y    = Z - x_p
+        self._last_innov = y         # expose innovation
+        Pzz  = P_p + self.R
+        Pxz  = P_p
+        K    = Pxz @ np.linalg.inv(Pzz)
 
-        # --- UPDATE (identity H) ------------------------------------------
-        y   = Z - x_pred
-        Pzz = P_pred + self.R
-        Pxz = P_pred 
-        K   = Pxz @ np.linalg.inv(Pzz)
-
-        self.x = x_pred + K @ y
-        self.P = P_pred - K @ Pzz @ K.T
+        I     = np.eye(self.dim_x)
+        self.x = x_p + K@y
+        self.P = (I-K)@P_p@(I-K).T + K@self.R@K.T
+        self.P = 0.5*(self.P+self.P.T) + 1e-6*np.eye(self.dim_x)
 
         if self.adaptive == "iae":
-            self._iae_update_covariances(y, Pzz)
+            α=0.05
+            self.R = (1-α)*self.R + α*np.outer(y,y)
 
-    # --------------------------------------------------------------
-    def _iae_update_covariances(self, innov: np.ndarray, S: np.ndarray):
-        """
-        Innovation-Based Adaptive Estimation (Li & Zhao 2014).
-
-        Parameters
-        ----------
-        innov : z_k − H x̂_k|k−1      (here H = I)
-        S     : innovation covariance (Pzz)
-        """
-        # ---- adapt R -----------------------------------------------------
-        alpha = 0.05                    # [0.01 … 0.1]  ← feel free to tune
-        self.R = (1 - alpha) * self.R + alpha * np.outer(innov, innov)
-
-        # ---- adapt Q -----------------------------------------------------
-        phi   = 0.995                   # fading-memory  (0.98 … 1.0)
-        self.Q /= phi                   # inflate   (φ < 1) ⇒ larger Q
-
+        # record
+        self._current_date = self._current_date.shiftedBy(dt)
+        self.history.append((self._current_date, self.x.copy()))
