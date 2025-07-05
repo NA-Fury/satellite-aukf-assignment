@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: "Satellite UKF Assignment"
+authors:
+  - family-names: Aslam
+    given-names: Naziha
+date-released: 2025-07-08
+license: MIT
+repository-code: https://github.com/NA-Fury/satellite-aukf-assignment
+message: >
+  Please cite this software as:
+  Aslam, Naziha. (2025) Satellite UKF Assignment (v1.0.0). 
+  GitHub repository. https://github.com/NA-Fury/satellite-aukf-assignment
