@@ -3,7 +3,7 @@
 
 # Satellite UKF Assignment
 
-**Author**: NA-Fury  
+**Author**: Naziha Aslam 
 **Date**: July 2025  
 
 A demonstration pipeline that  
