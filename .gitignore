@@ -1,21 +1,16 @@
-# Virtual environments
+﻿# Virtual environments
 venv/
 
-# Orekit data (clone separately via LFS or download_orekit_data_curdir)
+# Orekit physics data
 orekit-data/
 
-# Generated/cleaned data
+# Large generated tables
 *.parquet
 .clean_meta.json
 
-# Jupyter notebook checkpoints
+# Jupyter checkpoints
 .ipynb_checkpoints/
 
-# Python cache
+# Python bytecode
 __pycache__/
 *.py[cod]
-*.pyo
-
-# Logs, temp files
-*.log
-*.tmp

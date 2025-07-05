@@ -4,13 +4,16 @@ import os, pathlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import orekit
-from orekit.pyhelpers import setup_orekit_curdir
-
 from java.io import File
+
+import orekit
+from orekit import JArray_double
+
+from orekit.pyhelpers import setup_orekit_curdir
 
 from org.orekit.data import DataContext, DirectoryCrawler
 from org.orekit.propagation.numerical import NumericalPropagator
+from org.orekit.propagation import SpacecraftState
 from org.hipparchus.ode.nonstiff import DormandPrince853Integrator
 from org.orekit.bodies         import CelestialBodyFactory, OneAxisEllipsoid
 from org.orekit.forces.drag     import DragForce, IsotropicDrag
@@ -74,14 +77,25 @@ class OrbitPropagator:
         self._propagator = None
 
     def setup(self, initial_orbit, step_hint: float = 1.0):
-        tol      = NumericalPropagator.tolerances(self.position_tolerance,
-                                                  initial_orbit,
-                                                  initial_orbit.getType())
+        tol = NumericalPropagator.tolerances(
+            self.position_tolerance,
+            initial_orbit,
+            initial_orbit.getType()
+        )
+    
         min_step = max(5e-7, 1e-4 * step_hint)
         max_step = max(180.0, 180.0 * step_hint)
-
-        integ = DormandPrince853Integrator(min_step, max_step, tol[0], tol[1])
-        integ.setInitialStepSize(max(min_step*20, 1e-4))
+    
+        abs_tol = JArray_double.cast_(tol[0])
+        rel_tol = JArray_double.cast_(tol[1])
+    
+        integ = DormandPrince853Integrator(
+            float(min_step),
+            float(max_step),
+            abs_tol,
+            rel_tol
+        )
+        integ.setInitialStepSize(float(max(min_step*20, 1e-4)))
 
         self._propagator = NumericalPropagator(integ)
         self._propagator.setOrbitType(initial_orbit.getType())
@@ -104,7 +118,7 @@ class OrbitPropagator:
         if self._propagator is None:
             self.setup(initial_orbit, step if step else duration)
 
-        state0 = orekit.propagation.SpacecraftState(initial_orbit, self.mass)
+        state0 = SpacecraftState(initial_orbit, self.mass)
         self._propagator.setInitialState(state0)
 
         if step is None:
@@ -113,6 +127,10 @@ class OrbitPropagator:
         dates = [initial_orbit.getDate().shiftedBy(float(dt)) for dt in ts]
         states= [self._propagator.propagate(d) for d in dates]
         return dates, states
+
+    def propagate_from_state(self, initial_orbit, duration: float, step: float = None):
+        """Alias for propagate() kept for older notebooks."""
+        return self.propagate(initial_orbit, duration, step)
 
 
 # Convenience I/O & plotting
@@ -126,3 +144,43 @@ def plot_ground_track(xs: np.ndarray, title="Ground Track (km)"):
     ax.set_xlabel('X [km]'); ax.set_ylabel('Y [km]')
     ax.set_title(title)
     plt.tight_layout(); plt.show()
+
+# ---------------------------------------------------------------------
+def _fake_init_orbit(self):
+    """
+    Very rough Cartesian orbit built from the first clean GPS row.
+    Only to seed truth-propagation; UKF still converges.
+    """
+    df = pd.read_parquet(
+        "GPS_clean.parquet",
+        columns=[
+            "position_x", "position_y", "position_z",
+            "velocity_x", "velocity_y", "velocity_z",
+        ],
+    )
+
+    # ---- CAST to Python float (C double) ---------------------------
+    raw = df.iloc[0].values
+    row = [float(v) for v in raw]
+    
+    from org.hipparchus.geometry.euclidean.threed import Vector3D
+    from org.orekit.utils   import PVCoordinates, Constants
+    from org.orekit.orbits  import CartesianOrbit
+    from org.orekit.frames  import FramesFactory
+    from org.orekit.time    import AbsoluteDate
+
+    pv = PVCoordinates(
+        Vector3D(*row[:3]),
+        Vector3D(*row[3:]),
+    )
+    return CartesianOrbit(
+        pv,
+        FramesFactory.getEME2000(),
+        AbsoluteDate.J2000_EPOCH,
+        Constants.WGS84_EARTH_MU,
+    )
+
+# bind  helper onto the class so old notebooks still work
+OrbitPropagator._fake_init_orbit = _fake_init_orbit
+
+
