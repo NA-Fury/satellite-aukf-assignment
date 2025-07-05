@@ -5,15 +5,26 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Setup Conda
+        uses: conda-incubator/setup-miniconda@v2
         with:
-          python-version: '3.11'
-      - name: Install dependencies
+          auto-activate-base: false
+          python-version: 3.11
+          environment-file: environment.yml
+          activate-environment: aukf-env
+          channels: conda-forge
+          always-yes: true
+
+      - name: Install pytest
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          conda activate aukf-env
           pip install pytest
+
       - name: Run tests
-        run: pytest -q
+        run: |
+          conda activate aukf-env
+          pytest -q
