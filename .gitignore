@@ -1,62 +1,21 @@
-﻿########################
-#  Python / Conda
-########################
+# Virtual environments
+venv/
+
+# Orekit data (clone separately via LFS or download_orekit_data_curdir)
+orekit-data/
+
+# Generated/cleaned data
+*.parquet
+.clean_meta.json
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Python cache
 __pycache__/
 *.py[cod]
-*.so
-*.pyd
-*.egg-info/
-*.egg
-*.whl
-.Python
-env/
-.venv/
-.conda/
-*.conda
-*.ipynb_checkpoints/
+*.pyo
 
-########################
-#  Jupyter & VS Code
-########################
-.ipynb_checkpoints/
-.vscode/
-*.~ipynb
-# JupyterLab workdir state
-.lab/
-.jupyter/
-
-########################
-#  OS / Editor cruft
-########################
-.DS_Store
-Thumbs.db
-desktop.ini
-*.swp
-*.swo
-*.bak
-
-########################
-#  Logs / reports
-########################
+# Logs, temp files
 *.log
-*.out
 *.tmp
-*.coverage
-htmlcov/
-coverage.xml
-
-########################
-#  Large raw data
-########################
-*.parquet          # Ignore ALL parquet by default
-orekit-data/**     # 80 MB ephemeris, gravity, etc.
-
-# BUT: keep the cleaned subset
-!GPS_clean.parquet
-
-########################
-#  Build / dist artefacts
-########################
-build/
-dist/
-*.patch
