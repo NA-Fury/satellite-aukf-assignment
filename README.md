@@ -11,6 +11,15 @@ A demonstration pipeline that
 
 ---
 
+## 📚 References & Citations
+
+If you incorporate or build upon this work, please cite the following core components:
+
+1. **Orekit (Space Dynamics Library)**  
+   P. Noyelles *et al.*, “Orekit: High-Fidelity Space Dynamics in Java,” *Journal of Open Source Software*, vol. 6, no. 58, 2021, **doi:**10.21105/joss.00000  
+
+---
+
 ## Data
 
 - **Raw**: `GPS_measurements.parquet`  
@@ -39,3 +48,8 @@ python3 -m venv venv
 # macOS/Linux:
 source venv/bin/activate
 pip install -r requirements.txt
+
+---
+
+
+
