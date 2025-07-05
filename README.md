@@ -1,6 +1,9 @@
+![ci](https://github.com/NA-Fury/satellite-aukf-assignment/actions/workflows/ci.yml/badge.svg)
+![license](https://img.shields.io/github/license/NA-Fury/satellite-aukf-assignment)
+
 # Satellite UKF Assignment
 
-**Author**: NA-Fury  
+**Author**: Naziha Aslam 
 **Date**: July 2025  
 
 A demonstration pipeline that  
