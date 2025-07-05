@@ -8,6 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,4 +23,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run tests
+        # add the repo root so `import aukf` works
+        env:
+          PYTHONPATH: .
         run: pytest -q
