@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on: [push, pull_request]
 
@@ -17,7 +17,6 @@ jobs:
           environment-file: environment.yml
           activate-environment: aukf-env
           channels: conda-forge
-          always-yes: true
 
       - name: Install pytest
         run: |
@@ -28,3 +27,4 @@ jobs:
         run: |
           conda activate aukf-env
           pytest -q
+
