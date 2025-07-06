@@ -9,5 +9,6 @@ dependencies:
   - pytest
   - scipy
   - pint
+  - pyarrow
   - pip
   - pip:
