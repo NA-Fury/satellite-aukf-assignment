@@ -5,7 +5,6 @@ venv/
 orekit-data/
 
 # Large generated tables
-*.parquet
 .clean_meta.json
 
 # Jupyter checkpoints
