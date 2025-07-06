@@ -4,11 +4,12 @@ import os, pathlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from java.io import File
 
-import orekit
+import orekit                     # ① import orekit
+orekit.initVM()                   # ② start the JVM (once per process)
+
+from java.io import File          # ③ now safe – ‘java’ package exists
 from orekit import JArray_double
-
 from orekit.pyhelpers import setup_orekit_curdir
 
 from org.orekit.data import DataContext, DirectoryCrawler
@@ -25,12 +26,6 @@ from org.orekit.models.earth.atmosphere.data import CssiSpaceWeatherData
 from org.orekit.time           import TimeScalesFactory
 from org.orekit.utils          import Constants, IERSConventions
 
-# Start the VM and set up data
-try:
-    orekit.initVM()
-except RuntimeError:
-    pass
-
 try:
     setup_orekit_curdir()
 except RuntimeError:
@@ -44,10 +39,8 @@ if not DATA_DIR.exists():
 
 dpm = DataContext.getDefault().getDataProvidersManager()
 dpm.clearProviders()
-# ← HERE WE WRAP THE PATH IN A Java File
 dpm.addProvider(DirectoryCrawler(File(str(DATA_DIR))))
 print("✔️  Orekit data registered:", DATA_DIR)
-
 
 class OrbitPropagator:
     """
@@ -182,5 +175,3 @@ def _fake_init_orbit(self):
 
 # bind  helper onto the class so old notebooks still work
 OrbitPropagator._fake_init_orbit = _fake_init_orbit
-
-

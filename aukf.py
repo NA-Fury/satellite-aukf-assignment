@@ -1,11 +1,13 @@
 # aukf.py  ─── minimal but working UKF helper with robust jitter ────────────
 
 from __future__ import annotations
+import os, pathlib
+import matplotlib.pyplot as plt
 import numpy as np
-import json
+import pandas as pd
 
-try: orekit.initVM() 
-except RuntimeError: pass
+import orekit                     # ① import orekit
+orekit.initVM()                   # ② start the JVM (once per process)
 
 from org.orekit.utils   import PVCoordinates, Constants
 from org.hipparchus.geometry.euclidean.threed import Vector3D

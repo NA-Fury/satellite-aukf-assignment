@@ -1,7 +1,6 @@
 name: satellite-aukf
 channels:
   - conda-forge
-
 dependencies:
   - python=3.11
   - numpy
@@ -10,5 +9,5 @@ dependencies:
   - pytest
   - scipy
   - pint
-  - pip           
+  - pip
   - pip:
