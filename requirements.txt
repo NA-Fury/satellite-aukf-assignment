@@ -1,7 +1,6 @@
 pandas
 matplotlib
 pytest
-orekit-python 
 scipy
 pint
-numpy>=1.23
+pyarrow
