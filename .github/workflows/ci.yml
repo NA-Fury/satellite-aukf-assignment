@@ -22,8 +22,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Generate clean dataset
+        run: python regen_clean.py
+
       - name: Run tests
-        # add the repo root so `import aukf` works
         env:
           PYTHONPATH: .
         run: pytest -q
+
