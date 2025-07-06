@@ -1,5 +1,8 @@
-![ci](https://github.com/NA-Fury/satellite-aukf-assignment/actions/workflows/ci.yml/badge.svg)
-![license](https://img.shields.io/github/license/NA-Fury/satellite-aukf-assignment)
+<!-- CI status (GitHub Actions) -->
+![CI](https://github.com/NA-Fury/satellite-aukf-assignment/actions/workflows/ci.yml/badge.svg)
+
+<!-- License (Shields.io) -->
+![License](https://img.shields.io/github/license/NA-Fury/satellite-aukf-assignment)
 
 # Satellite UKF Assignment
 
