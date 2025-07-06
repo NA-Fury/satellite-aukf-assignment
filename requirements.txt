@@ -1,11 +1,7 @@
-<<<<<<< HEAD
-numpy>=1.21
-=======
-numpy>=1.23
->>>>>>> 03baab6018c717a1e3b535d2316686e3c91c51f5
 pandas
 matplotlib
 pytest
-orekit-python
+orekit-python 
 scipy
 pint
+numpy>=1.23
