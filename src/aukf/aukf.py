@@ -67,8 +67,6 @@ def _sigma_optimized(x: np.ndarray, P: np.ndarray,
     
     return χ, Wm, Wc
 
-# alias exactly what the tests expect
-_sigma_points = _sigma_optimized
 
 def _obs_vectorized(pv: np.ndarray) -> np.ndarray:
     """Vectorized PV [m, m s⁻¹] → measurement units [km, dm s⁻¹]."""
@@ -162,15 +160,16 @@ class OptimizedAUKF:
     
     dim_x = 6   # [x y z vx vy vz] in metres
 
-    def __init__(self, cols: List[str], 
-                 f: Callable[[np.ndarray,float],np.ndarray],
-                 *, q0: float|None=None,
-                   σ_a: float=5e-6, r0: float=25.0,
-                   γQ: float=0.98, γR: float=0.90,
-                   α: float=1e-3, β: float=2.0, κ: float=0.0):
-        # honor legacy `q0` from tests
-        if q0 is not None:
-            σ_a = q0
+    def __init__(self,
+                 meas_cols: List[str],
+                 dyn_f: Callable[[np.ndarray, float], np.ndarray],
+                 *,
+                 σ_a=1e-8,              # Reduced process noise
+                 r0=None,
+                 γQ=0.995,              # More conservative Q adaptation
+                 γR=0.99,               # More conservative R adaptation
+                 α=1e-3, β=2.0, κ=0.0,
+                 adaptive_window=100):   # Adaptation window
 
         self.cols = meas_cols
         self.f = dyn_f
@@ -392,3 +391,7 @@ class OptimizedAUKF:
     def _S(self):
         """Compatibility property for old interface."""
         return self._S_history
+
+# ─── ALIASES FOR TESTS ────────────────────────────────────────────────
+AUKF = OptimizedAUKF
+_sigma_points = _sigma_optimized
