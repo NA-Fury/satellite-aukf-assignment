@@ -164,13 +164,19 @@ class OptimizedAUKF:
                  meas_cols: List[str],
                  dyn_f: Callable[[np.ndarray, float], np.ndarray],
                  *,
-                 σ_a=1e-8,              # Reduced process noise
+                 q0: float | None = None,    # <— allow tests to pass q0
+                 σ_a: float = 1e-8,
                  r0=None,
                  γQ=0.995,              # More conservative Q adaptation
                  γR=0.99,               # More conservative R adaptation
                  α=1e-3, β=2.0, κ=0.0,
                  adaptive_window=100):   # Adaptation window
+        
+        # if user passed a 'q0' (linear‐CV test), override σ_a
+        if q0 is not None:
+            σ_a = q0
 
+        
         self.cols = meas_cols
         self.f = dyn_f
         self.α, self.β, self.κ = α, β, κ
