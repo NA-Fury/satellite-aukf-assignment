@@ -1,14 +1,11 @@
-# setup.py
 from setuptools import setup, find_packages
 
 setup(
     name="aukf",
     version="0.1.0",
-    description="Adaptive Unscented Kalman Filter for GNSS",
-    author="Naziha Aslam",
-    license="MIT",
-    package_dir={"": "src"},
+    description="Adaptive Unscented Kalman Filter for satellite GNSS demo",
     packages=find_packages(where="src"),
+    package_dir={"": "src"},
     install_requires=[
         "numpy>=1.20",
         "scipy>=1.7",
@@ -17,5 +14,5 @@ setup(
         "pyarrow",
         "pint",
     ],
-    python_requires=">=3.8,<3.12",
+    python_requires=">=3.8",
 )
