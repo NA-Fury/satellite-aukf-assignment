@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: satellite_aukf_assignment
+Version: 0.1.0
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pandas
+Requires-Dist: matplotlib
+Requires-Dist: pytest
+Requires-Dist: pyarrow
+Requires-Dist: pint
+Dynamic: license-file
+Dynamic: requires-dist
