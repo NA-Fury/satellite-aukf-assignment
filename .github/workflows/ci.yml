@@ -1,22 +1,21 @@
 name: CI
 
-on:
-  push:    { branches: [main] }
-  pull_request:
+on: [push, pull_request]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Conda
-        uses: conda-incubator/setup-miniconda@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: 3.11
-          environment-file: environment.yml
-          activate-environment: satellite-aukf
-      - name: Run tests
-        env:
-          PYTHONPATH: src
+
+      - name: Install & test
         run: |
-          conda run -n satellite-aukf pytest -q
+          python -m pip install --upgrade pip
+          pip install -e .
+          pytest -q
