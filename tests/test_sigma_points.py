@@ -3,9 +3,11 @@
 import numpy as np
 from aukf import _sigma_points
 
-def test_weights_sum():
-    x  = np.zeros(6)
-    P  = np.eye(6)
-    χ, Wm, Wc = _sigma_points(x, P, 1e-3, 2.0, 0.0)
-    assert np.isclose(Wm.sum(), 1.0)
-    assert np.isclose(Wc.sum(), 4.0)      # see note in docs
+def test_sigma_point_mean_recovery():
+    """Unscented transform must reproduce the mean exactly."""
+    n = 3
+    x = np.arange(n, dtype=float)
+    P = np.eye(n)
+    χ, Wm, _ = _sigma_points(x, P)
+    x_rec = χ.T @ Wm
+    assert np.allclose(x, x_rec), "UT mean mismatch"

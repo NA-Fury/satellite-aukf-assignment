@@ -1,0 +1,29 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-activate-base: false
+          python-version: 3.11
+          environment-file: environment.yml
+          activate-environment: aukf-env
+          channels: conda-forge
+
+      - name: Install pytest
+        run: |
+          conda activate aukf-env
+          pip install pytest
+
+      - name: Run tests
+        run: |
+          conda activate aukf-env
+          pytest -q
