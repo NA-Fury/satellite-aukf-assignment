@@ -1,7 +1,43 @@
-numpy
-pandas
-matplotlib
-scipy
-pytest
-pyarrow
-pint
+# Core scientific computing
+numpy>=1.21.0,<2.0.0
+pandas>=2.0.0,<3.0.0
+scipy>=1.7.0,<2.0.0
+
+# Visualization
+matplotlib>=3.4.0,<4.0.0
+# seaborn>=0.11.0,<1.0.0  # commented out: use via conda if needed
+
+# Orbit propagation
+# orekit>=11.0,<12.0.0  # not on PyPI; install via conda if needed
+
+# Statistical analysis
+statsmodels>=0.12.0,<1.0.0
+
+# Jupyter environment
+jupyter>=1.0.0
+ipykernel>=6.0.0
+notebook>=6.4.0
+
+# Testing
+pytest>=6.0.0,<8.0.0
+pytest-cov>=2.12.0,<5.0.0
+
+# Development tools
+black>=21.0,<24.0
+flake8>=3.9.0,<7.0.0
+mypy>=0.910,<2.0.0
+
+# Type hints support
+typing-extensions>=3.10.0,<5.0.0
+
+# Data handling
+pyarrow>=5.0.0,<15.0.0  # For parquet files
+tables>=3.6.0,<4.0.0     # Alternative HDF5 support
+
+# Logging and configuration
+python-dotenv>=0.19.0,<2.0.0
+colorlog>=6.0.0,<7.0.0
+
+# Performance
+numba>=0.54.0,<1.0.0  # Optional: for JIT compilation
+cython>=0.29.0,<4.0.0  # Optional: for performance critical sections
