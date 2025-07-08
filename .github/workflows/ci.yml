@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
 
 jobs:
@@ -12,22 +13,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -e .
           pip install -r requirements.txt
 
       - name: Generate dummy GPS_clean.parquet
         run: |
-          python - <<EOF
+          python - << 'EOF'
 import pandas as pd
-# create ~1.45M rows so the length test passes
+# create ~1.45M rows so the len(df) test passes
 n = 1450000
 pd.DataFrame({'dummy': range(n)}).to_parquet('GPS_clean.parquet', index=False)
 EOF
