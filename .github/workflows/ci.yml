@@ -26,12 +26,7 @@ jobs:
 
       - name: Generate dummy GPS_clean.parquet
         run: |
-          python - << 'EOF'
-import pandas as pd
-# create ~1.45M rows so the len(df) test passes
-n = 1450000
-pd.DataFrame({'dummy': range(n)}).to_parquet('GPS_clean.parquet', index=False)
-EOF
+          python -c "import pandas as pd; n=1450000; pd.DataFrame({'dummy':range(n)}).to_parquet('GPS_clean.parquet', index=False)"
 
       - name: Run tests
         run: pytest -q
