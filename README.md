@@ -9,37 +9,41 @@
 **Author**: Naziha Aslam  
 **Date**: July 2025  
 
-A demonstration pipeline that:  
-1. 📝 **Preprocesses** raw GPS measurements (`GPS_measurements.parquet`) into a cleaned, wide-format table (`GPS_clean.parquet`)  
+A demonstration pipeline that:
+
+1. 📝 **Preprocesses** raw GPS measurements (`data/GPS_measurements.parquet`) into a cleaned, wide-format table (`GPS_clean.parquet`)  
 2. 🔄 **Applies** an Unscented Kalman Filter (UKF) to fuse multi-satellite ECEF position + velocity measurements  
 3. 📊 **Diagnoses** filter consistency via a Normalised Innovation Squared (NIS) test  
-4. 🌍 **Compares** a constant-velocity model vs. an analytic two-body propagator  
+4. 🌍 **Compares** a constant-velocity model vs. a two-body propagator  
 
 ---
 
 ## 📚 References & Citations
 
-If you incorporate or build upon this work, please cite the following:
+If you use or build upon this work, please cite:
 
-1. **Orekit (Space Dynamics Library)**  
-   P. Noyelles *et al.*, “Orekit: High-Fidelity Space Dynamics in Java,” *Journal of Open Source Software*, 6(58), 2021. doi:10.21105/joss.00000  
+> Aslam, N. (2025). *Satellite UKF Assignment* (v1.0.0). GitHub. https://github.com/NA-Fury/satellite-aukf-assignment
+
+**Primary algorithm & tools**  
+- Julier, S. J. & Uhlmann, J. K. (1997). New extension of the Kalman filter to nonlinear systems. *SPIE*.  
+- P. Noyelles *et al.* (2021). “Orekit: High-Fidelity Space Dynamics in Java,” *Journal of Open Source Software*, 6(58). doi:10.21105/joss.00000  
 
 ---
 
 ## 📂 Data
 
-- **Raw**: `GPS_measurements.parquet`  
+- **Raw**: `data/GPS_measurements.parquet`  
   • Long format: time, satellite ID, ECEF position [km], velocity [dm/s]  
 - **Clean**: `GPS_clean.parquet`  
   • Wide format: positions [m], velocities [m/s]; 3σ outlier removal  
-- **Regen**: `regen_clean.py` to rebuild `GPS_clean.parquet` from the raw file  
+- **Regen**: `regen_clean.py` to rebuild the clean file  
 
 ---
 
-## 🛠️ Setup
+## 🛠️ Setup & Usage
 
 ```bash
-# Clone the repo
+# Clone
 git clone https://github.com/NA-Fury/satellite-aukf-assignment.git
 cd satellite-aukf-assignment
 
@@ -49,8 +53,16 @@ conda activate satellite-aukf
 
 # Or venv + pip
 python3 -m venv venv
-# Windows PowerShell:
-.\venv\Scripts\Activate.ps1 
-# macOS/Linux:
-source venv/bin/activate
+source venv/bin/activate  # or .\venv\Scripts\Activate.ps1 on Windows
+
+pip install -e .
 pip install -r requirements.txt
+
+# Re-generate clean data
+python regen_clean.py
+
+# Run the filter demo (notebook)
+jupyter lab notebooks/02_filter_demo.ipynb
+
+# Run unit tests
+pytest -q
