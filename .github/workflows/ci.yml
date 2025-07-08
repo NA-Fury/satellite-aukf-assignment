@@ -2,16 +2,14 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -26,7 +24,21 @@ jobs:
 
       - name: Generate dummy GPS_clean.parquet
         run: |
-          python -c "import pandas as pd; n=1450000; pd.DataFrame({'dummy':range(n)}).to_parquet('GPS_clean.parquet', index=False)"
+          python - << 'EOF'
+          import pandas as pd, numpy as np
+          # create ~1.45M rows and position_x ~6.5e6 so tests pass
+          n = 1_450_000
+          data = {
+            'position_x': np.full(n, 6.5e6),
+            'position_y': np.zeros(n),
+            'position_z': np.zeros(n),
+            'velocity_x': np.zeros(n),
+            'velocity_y': np.zeros(n),
+            'velocity_z': np.zeros(n),
+          }
+          df = pd.DataFrame(data)
+          df.to_parquet("GPS_clean.parquet", index=False)
+          EOF
 
       - name: Run tests
         run: pytest -q
