@@ -10,7 +10,7 @@ GNSS pre-processing
 """
 import json, hashlib, os, numpy as np, pandas as pd
 
-RAW, CLEAN = "GPS_measurements.parquet", "GPS_clean.parquet"
+RAW, CLEAN = "data/GPS_measurements.parquet", "GPS_clean.parquet"
 
 # ── long → wide ---------------------------------------------------------
 gps_long = pd.read_parquet(RAW).rename(columns={"datetime": "time"})
