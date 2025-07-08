@@ -1,17 +1,14 @@
 name: CI
 
 on:
-  push:
-    branches: [ main ]
+  push: { branches: [main] }
   pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -24,7 +21,7 @@ jobs:
           pip install -e .
           pip install -r requirements.txt
 
-      - name: Generate cleaned GNSS data
+      - name: Generate clean GNSS data
         run: python regen_clean.py
 
       - name: Run tests
