@@ -1,0 +1,5 @@
+# keep universal LF line-endings in the repo; Windows will checkout CRLF
+* text=auto eol=lf
+*.ipynb binary           # notebooks are zipped JSON → leave untouched
+*.parquet binary
+*.pdf     binary
