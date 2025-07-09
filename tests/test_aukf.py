@@ -1,18 +1,12 @@
-"""
-Unit tests for Adaptive UKF implementation.
-"""
+"""Unit tests for AdaptiveUKF."""
 
-import os
-import sys
+from __future__ import annotations
 
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from src.aukf import AdaptiveUKF, FilterParameters
-from src.utils import measurement_model
+from satellite_aukf import AdaptiveUKF, FilterParameters, measurement_model
 
 
 class TestAdaptiveUKF:
