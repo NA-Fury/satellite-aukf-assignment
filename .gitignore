@@ -1,15 +1,88 @@
-﻿# Virtual environments
-venv/
-
-# Orekit physics data
-orekit-data/
-
-# Large generated tables
-.clean_meta.json
-
-# Jupyter checkpoints
-.ipynb_checkpoints/
-
-# Python bytecode
+﻿##############################################################################
+#  Python artefacts
+##############################################################################
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+
+#  Virtual-envs (whichever naming convention people use)
+.venv/
+venv/
+env/
+ENV/
+
+##############################################################################
+#  Build / packaging output
+##############################################################################
+build/
+dist/
+wheels/
+downloads/
+.eggs/
+*.egg-info/
+develop-eggs/
+parts/
+sdist/
+.installed.cfg
+
+##############################################################################
+#  Jupyter
+##############################################################################
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+##############################################################################
+#  Test / coverage artefacts
+##############################################################################
+.tox/
+.pytest_cache/
+.hypothesis/
+.cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+nosetests.xml
+
+##############################################################################
+#  Editors / IDEs
+##############################################################################
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+##############################################################################
+#  OS–generated junk
+##############################################################################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+##############################################################################
+#  Project-specific outputs
+##############################################################################
+*.pkl
+*.parquet           # block every parquet …
+!data/GPS_measurements.parquet   # … except the raw file you were told to keep
+filter_results.png
+adaptive_parameters.png
+error_analysis.png
+
+##############################################################################
+#  Orekit gravity models (downloaded in CI)
+##############################################################################
+orekit-data/
+orekit-data-master/
+
+##############################################################################
+#  Docs build
+##############################################################################
+docs/_build/

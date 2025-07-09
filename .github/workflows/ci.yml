@@ -2,46 +2,92 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
+    branches: [main]
+
+concurrency:                # cancel stale runs on same PR/branch
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+# --------------------------------------------------------------------------
+# 1)  Lint + unit tests  (matrix over python versions)
+# --------------------------------------------------------------------------
   test:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
     steps:
-      - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-      # … your setup / install steps here …
+    # ---------- fast Conda create (micromamba) ----------------------------
+    - uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: environment.yml     # <- your conda spec
+        create-args: >-
+          python=${{ matrix.python-version }}
+        cache-downloads: true                 # global package cache
 
-      - name: Generate dummy GPS_clean.parquet
-        run: |
-          python - << 'EOF'
-import pandas as pd
-import numpy as np
+    # ---------- repo in editable mode (+ dev deps) ------------------------
+    - name: Install package
+      shell: bash -l {0}
+      run: |
+        pip install -e ".[dev]"               # uses pyproject optional-deps
 
-# Choose any n between 1.4M and 1.5M
-n = 1_450_000
+    # ---------- fetch Orekit gravity files --------------------------------
+    - name: Download orekit-data
+      shell: bash -l {0}
+      env:
+        OREKIT_DATA_PATH: ${{ github.workspace }}/orekit-data
+      run: |
+        mkdir -p "$OREKIT_DATA_PATH"
+        wget -q https://gitlab.orekit.org/orekit/orekit-data/-/archive/master/orekit-data-master.zip -O od.zip
+        unzip -q od.zip -d "$OREKIT_DATA_PATH"
+        echo "OREKIT_DATA_PATH=$OREKIT_DATA_PATH" >> $GITHUB_ENV
 
-# Build dummy data so that
-# 1. 1_400_000 < len(df) < 1_500_000
-# 2. 6.0e6 < position_<*> < 7.0e6
-# 3. -500 < velocity_z.min() < -100
-df = pd.DataFrame({
-    "position_x": np.random.uniform(6.0e6, 7.0e6, n),
-    "position_y": np.random.uniform(6.0e6, 7.0e6, n),
-    "position_z": np.random.uniform(6.0e6, 7.0e6, n),
-    "velocity_x": np.random.uniform(-1000, 1000, n),
-    "velocity_y": np.random.uniform(-1000, 1000, n),
-    # make sure the minimum is between -500 and -100
-    "velocity_z": np.random.uniform(-300, -150, n),
-})
+    # ---------- style / static analysis -----------------------------------
+    - name: Pre-commit checks
+      shell: bash -l {0}
+      run: |
+        pre-commit run --all-files
 
-df.to_parquet("GPS_clean.parquet", index=False)
-EOF
+    # ---------- tests + coverage ------------------------------------------
+    - name: Pytest
+      shell: bash -l {0}
+      run: |
+        pytest -q --cov=satellite_aukf --cov-report=xml
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+    # ---------- upload to Codecov -----------------------------------------
+    - uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.xml
+        flags: unittests
+        fail_ci_if_error: true
 
-      - name: Run pytest
-        run: pytest -q
+# --------------------------------------------------------------------------
+# 2)  Docs build (runs only if tests passed)
+# --------------------------------------------------------------------------
+  docs:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: environment.yml
+        create-args: "python=3.11"
+        cache-downloads: true
+    - name: Install doc toolchain
+      shell: bash -l {0}
+      run: |
+        pip install -e .[dev]
+        pip install sphinx sphinx-rtd-theme nbsphinx myst-parser
+    - name: Build HTML docs
+      shell: bash -l {0}
+      run: |
+        cd docs && make html

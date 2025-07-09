@@ -1,179 +1,156 @@
 #!/usr/bin/env python3
 """
-Regenerate clean GPS data from raw measurements.
+Regenerate *data/GPS_clean.parquet* from raw GNSS measurements.
 
-This script processes the raw GPS_measurements.parquet file to create
-a cleaned version with outlier detection, interpolation, and coordinate
-transformations.
+Features
+--------
+* Outlier rejection (position + velocity thresholds)
+* Linear interpolation of missing / flagged rows
+* Optional ECEF → ECI conversion (Orekit if present, else simple rotation)
+
+Run ``python regen_clean.py --help`` for CLI options.
 """
 
-import numpy as np
-import pandas as pd
-from pathlib import Path
+from __future__ import annotations
+
+import argparse
 import logging
 from datetime import datetime
-import argparse
+from pathlib import Path
+from typing import Tuple
 
-# Import utilities
-from utils import DataProcessor, CoordinateTransforms, OrekitInitializer
+import numpy as np
+from numpy.typing import NDArray
+from utils import CoordinateTransforms, DataProcessor, OrekitInitializer
 
-# Configure logging
+# ---------------------------------------------------------------------------
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s  %(levelname)-8s  %(message)s",
 )
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
 
-def main(args):
-    """Main processing function."""
-    
-    # Define paths
+
+def main(args: argparse.Namespace) -> int:
+    """CLI entry point."""
     data_dir = Path(args.data_dir)
-    input_file = data_dir / "GPS_measurements.parquet"
-    output_file = data_dir / "GPS_clean.parquet"
-    
-    # Check input file exists
-    if not input_file.exists():
-        logger.error(f"Input file not found: {input_file}")
+    inp = data_dir / "GPS_measurements.parquet"
+    out = data_dir / "GPS_clean.parquet"
+
+    if not inp.exists():
+        logger.error("Input file not found: %s", inp)
         return 1
-    
-    logger.info(f"Loading raw GPS data from {input_file}")
-    
-    # Load raw data
-    gps_data = DataProcessor.load_gps_data(str(input_file))
-    logger.info(f"Loaded {len(gps_data):,} measurements")
-    
-    # Detect outliers
-    logger.info("Detecting outliers...")
-    gps_data = DataProcessor.detect_outliers(
-        gps_data,
+
+    logger.info("Loading raw GNSS data …")
+    gps_df = DataProcessor.load_gps_data(str(inp))
+    logger.info("Loaded %,d rows", len(gps_df))
+
+    # ── detect & interpolate outliers ───────────────────────────────────────
+    gps_df = DataProcessor.detect_outliers(
+        gps_df,
         position_threshold=args.position_threshold,
-        velocity_threshold=args.velocity_threshold
+        velocity_threshold=args.velocity_threshold,
     )
-    
-    n_outliers = gps_data['is_outlier'].sum()
-    logger.info(f"Found {n_outliers:,} outliers ({n_outliers/len(gps_data)*100:.2f}%)")
-    
-    # Interpolate missing data
-    logger.info("Interpolating missing/outlier data...")
-    gps_clean = DataProcessor.interpolate_missing_data(gps_data)
-    
-    # Convert to ECI coordinates if requested
+    n_out = int(gps_df["is_outlier"].sum())
+    logger.info("Flagged %,d outliers (%.2f %%)", n_out, n_out / len(gps_df) * 100)
+
+    gps_clean = DataProcessor.interpolate_missing_data(gps_df)
+
+    # ── optional ECEF → ECI --------------------------------------------------
     if args.convert_eci:
-        logger.info("Converting ECEF to ECI coordinates...")
-        
-        # Initialize Orekit if available
-        try:
-            OrekitInitializer.initialize()
-            use_orekit = True
-        except:
-            logger.warning("Orekit not available, using simplified transformation")
-            use_orekit = False
-        
-        eci_positions = []
-        eci_velocities = []
-        
-        for idx, row in gps_clean.iterrows():
-            if idx % 1000 == 0:
-                logger.info(f"  Processing {idx}/{len(gps_clean)}...")
-            
-            ecef_pos = np.array([row['x_ecef'], row['y_ecef'], row['z_ecef']])
-            ecef_vel = np.array([row['vx_ecef'], row['vy_ecef'], row['vz_ecef']])
-            
-            if use_orekit:
-                try:
-                    eci_pos, eci_vel = CoordinateTransforms.ecef_to_eci(
-                        ecef_pos, ecef_vel, row['datetime']
-                    )
-                except:
-                    # Fallback to simple rotation
-                    eci_pos, eci_vel = simple_ecef_to_eci(
-                        ecef_pos, ecef_vel, row['datetime'], gps_clean['datetime'].iloc[0]
-                    )
-            else:
-                eci_pos, eci_vel = simple_ecef_to_eci(
-                    ecef_pos, ecef_vel, row['datetime'], gps_clean['datetime'].iloc[0]
-                )
-            
-            eci_positions.append(eci_pos.tolist())
-            eci_velocities.append(eci_vel.tolist())
-        
-        gps_clean['eci_position'] = eci_positions
-        gps_clean['eci_velocity'] = eci_velocities
-    
-    # Add metadata
-    gps_clean.attrs['processed_date'] = datetime.now().isoformat()
-    gps_clean.attrs['outlier_count'] = int(n_outliers)
-    gps_clean.attrs['outlier_percentage'] = float(n_outliers/len(gps_data)*100)
-    
-    # Save cleaned data
-    logger.info(f"Saving cleaned data to {output_file}")
-    gps_clean.to_parquet(output_file, compression='snappy')
-    
-    # Print summary statistics
-    logger.info("\nSummary Statistics:")
-    logger.info(f"  Total measurements: {len(gps_clean):,}")
-    logger.info(f"  Satellites: {gps_clean['sv'].nunique()}")
-    logger.info(f"  Time range: {gps_clean['datetime'].min()} to {gps_clean['datetime'].max()}")
-    logger.info(f"  Position range (km): X=[{gps_clean['x_ecef'].min()/1000:.1f}, {gps_clean['x_ecef'].max()/1000:.1f}]")
-    
-    logger.info("\n✓ Data cleaning complete!")
+        _add_eci_columns(gps_clean)
+
+    # ── metadata & write parquet ────────────────────────────────────────────
+    gps_clean.attrs.update(
+        processed_date=datetime.utcnow().isoformat(timespec="seconds"),
+        outlier_count=n_out,
+        outlier_percentage=n_out / len(gps_df) * 100,
+    )
+    logger.info("Writing cleaned data → %s", out)
+    gps_clean.to_parquet(out, compression="snappy")
+
+    logger.info(
+        "✓ Done – %,d rows • %d SV • %s … %s",
+        len(gps_clean),
+        gps_clean["sv"].nunique(),
+        gps_clean["datetime"].min(),
+        gps_clean["datetime"].max(),
+    )
     return 0
 
 
-def simple_ecef_to_eci(ecef_pos, ecef_vel, current_time, start_time):
-    """Simple ECEF to ECI transformation using Earth rotation."""
-    # Earth rotation rate
-    omega = 7.2921159e-5  # rad/s
-    
-    # Time since start
-    dt = (current_time - start_time).total_seconds()
-    
-    # Rotation angle
-    theta = omega * dt
-    
-    # Rotation matrix
-    R = np.array([
-        [np.cos(theta), -np.sin(theta), 0],
-        [np.sin(theta),  np.cos(theta), 0],
-        [0, 0, 1]
-    ])
-    
-    # Transform position and velocity
-    eci_pos = R @ ecef_pos
-    eci_vel = R @ ecef_vel + np.cross([0, 0, omega], eci_pos)
-    
-    return eci_pos, eci_vel
+# ---------------------------------------------------------------------------
 
+
+def _add_eci_columns(df) -> None:  # noqa: ANN001  (keep signature simple)
+    """Append ``eci_position`` & ``eci_velocity`` list columns in-place."""
+    logger.info("Converting ECEF → ECI … (Orekit preferred)")
+
+    try:
+        OrekitInitializer.initialize()
+        use_orekit = True
+    except Exception:
+        logger.warning("Orekit unavailable – falling back to simple rotation")
+        use_orekit = False
+
+    eci_pos, eci_vel = [], []
+    start_time = df["datetime"].iloc[0]
+
+    for idx, row in df.iterrows():
+        if idx % 1_000 == 0:
+            logger.info("  progress %d / %d", idx, len(df))
+
+        ecef_p = np.array([row[f"{ax}_ecef"] for ax in ("x", "y", "z")])
+        ecef_v = np.array([row[f"v{ax}_ecef"] for ax in ("x", "y", "z")])
+
+        if use_orekit:
+            try:
+                p, v = CoordinateTransforms.ecef_to_eci(ecef_p, ecef_v, row["datetime"])
+            except Exception:
+                p, v = simple_ecef_to_eci(ecef_p, ecef_v, row["datetime"], start_time)
+        else:
+            p, v = simple_ecef_to_eci(ecef_p, ecef_v, row["datetime"], start_time)
+
+        eci_pos.append(p.tolist())
+        eci_vel.append(v.tolist())
+
+    df["eci_position"] = eci_pos
+    df["eci_velocity"] = eci_vel
+
+
+def simple_ecef_to_eci(
+    ecef_pos: NDArray[np.float64],
+    ecef_vel: NDArray[np.float64],
+    current: datetime,
+    epoch0: datetime,
+) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Ultra-light ECEF→ECI rotation (ignores polar motion, precession, nutation)."""
+    omega = 7.292_115_9e-5  # rad s⁻¹
+    theta = omega * (current - epoch0).total_seconds()
+
+    rot = np.array(
+        [
+            [np.cos(theta), -np.sin(theta), 0.0],
+            [np.sin(theta), np.cos(theta), 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+    r_eci = rot @ ecef_pos
+    v_eci = rot @ ecef_vel + np.cross([0.0, 0.0, omega], r_eci)
+    return r_eci, v_eci
+
+
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Regenerate clean GPS data from raw measurements"
+    p = argparse.ArgumentParser(description="Clean & optionally rotate GNSS parquet")
+    p.add_argument(
+        "--data-dir", default="data", help="directory containing raw parquet"
     )
-    parser.add_argument(
-        "--data-dir",
-        type=str,
-        default="data",
-        help="Directory containing GPS data files"
-    )
-    parser.add_argument(
-        "--position-threshold",
-        type=float,
-        default=50000,
-        help="Position outlier threshold in meters"
-    )
-    parser.add_argument(
-        "--velocity-threshold",
-        type=float,
-        default=1000,
-        help="Velocity outlier threshold in m/s"
-    )
-    parser.add_argument(
-        "--convert-eci",
-        action="store_true",
-        help="Convert ECEF to ECI coordinates"
-    )
-    
-    args = parser.parse_args()
-    exit(main(args))
+    p.add_argument("--position-threshold", type=float, default=50_000, help="metres")
+    p.add_argument("--velocity-threshold", type=float, default=1_000, help="m s⁻¹")
+    p.add_argument("--convert-eci", action="store_true", help="add ECI columns")
+    raise SystemExit(main(p.parse_args()))

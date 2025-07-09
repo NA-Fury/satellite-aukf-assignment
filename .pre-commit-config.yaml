@@ -1,0 +1,38 @@
+# -------------------------------------------------------------------
+# Pre-commit hook set – synced with versions pinned in pyproject.toml
+# -------------------------------------------------------------------
+repos:
+  # Code formatter ---------------------------------------------------
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        args: ["--line-length=88"]
+
+  # Import sorter ----------------------------------------------------
+  - repo: https://github.com/pycqa/isort
+    rev: 6.0.1
+    hooks:
+      - id: isort
+        args: ["--profile", "black", "--line-length", "88"]
+
+  # Linter -----------------------------------------------------------
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.3.0
+    hooks:
+      - id: flake8
+        additional_dependencies:
+          - flake8-bugbear
+        args:
+          # keep flake8 in sync with black/isort and silence minor issues
+          - --max-line-length=88
+          - --extend-ignore=E501,E402,F401,F841
+
+  # Hygiene extras ---------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: ["--maxkb=500"]      # refuse >500 kB blobs (e.g. stray notebooks)
