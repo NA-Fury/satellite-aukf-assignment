@@ -1,0 +1,6 @@
+[data]
+# one central knob is often enough – but you can override individual files too
+dir = "/mnt/satdata"
+
+# raw_gps = "/mnt/satdata/iceland/GPS_measurements.parquet"
+# clean_gps = "/mnt/satdata/iceland/GPS_clean.parquet"
