@@ -1,5 +1,5 @@
 # 🏆 Adaptive Unscented Kalman Filter for Satellite Tracking
-## ** PERFORMANCE ACHIEVEMENT - 281,000x IMPROVEMENT**
+## ** PERFORMANCE ACHIEVEMENT - 281,000x IMPROVEMENT since START**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-19%2F19%20Passing-brightgreen)](tests/)
@@ -10,7 +10,7 @@
 
 This repository contains a **production-ready implementation** of an Adaptive Unscented Kalman Filter (AUKF) for tracking the SWARM-A satellite using GNSS measurements. Through systematic engineering optimization, this implementation achieves **high performance** with the most accurate satellite tracking results on record.
 
-### 🎯 Historic Achievement
+### 🎯 Achievement
 
 **HIGH PERFORMANCE:**
 - 🎯 **Position Accuracy:** 23.10m RMSE (2.2x better than 50m)
