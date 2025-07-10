@@ -315,7 +315,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 For questions about this implementation:
 - 📧 Issues: [GitHub Issues](https://github.com/NA-Fury/satellite-aukf-assignment/issues)
-- 📖 Documentation: [Technical Report (PDF)](https://github.com/NA-Fury/satellite-aukf-assignment/blob/main/docs/Final%20Technical%20Report%20-%20AUKF%20Satellite%20Tracking.pdf)
 
 ---
 
