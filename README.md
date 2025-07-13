@@ -2,8 +2,8 @@
 ## **281 000 × Accuracy Improvement – July 2025 Resubmission**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)  
-[![CI](https://img.shields.io/github/actions/workflow/status/NA-Fury/satellite-aukf-assignment/build-and-test.yml?label=CI)](../../actions)  
-[![Tests](https://img.shields.io/badge/Tests-19%2F19%20Passing-brightgreen)](tests/)  
+[![CI](https://img.shields.io/github/actions/workflow/status/NA-Fury/satellite-aukf-assignment/build-and-test.yml?label=CI)](https://github.com/NA-Fury/satellite-aukf-assignment/actions)
+[![Tests](https://img.shields.io/badge/Tests-19%2F19%20Passing-brightgreen)](https://github.com/NA-Fury/satellite-aukf-assignment/tree/main/tests)
 [![Throughput](https://img.shields.io/badge/Throughput-165.3%20Hz-blue)](docs/)  
 [![Pos RMSE](https://img.shields.io/badge/Pos.%20RMSE-0.00%20m-brightgreen)](docs/)  
 [![Vel RMSE](https://img.shields.io/badge/Vel.%20RMSE-0.10%20m%20s⁻¹-brightgreen)](docs/)
