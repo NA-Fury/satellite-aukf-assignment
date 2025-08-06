@@ -8,8 +8,6 @@
 [![Pos RMSE](https://img.shields.io/badge/Pos.%20RMSE-0.00%20m-brightgreen)](https://github.com/NA-Fury/satellite-aukf-assignment/tree/main/docs)  
 [![Vel RMSE](https://img.shields.io/badge/Vel.%20RMSE-0.10%20m%20s⁻¹-brightgreen)](https://github.com/NA-Fury/satellite-aukf-assignment/tree/main/docs)
 
-> *“From 6.5 million m error to **0 m** bias-free precision — the power of systematic engineering.”*
-
 ---
 
 ## 🚀 Overview
@@ -269,7 +267,4 @@ assert kpi['mean_latency'] < 100.0 # ms
 - Issues → GitHub Issues tab
 - Tech report → `docs/Final_Technical_Report_Full_Mission.md`
 - Getting Started → `docs/Getting_Started_Improved.md`
-
-Happy tracking 🚀
-
 
